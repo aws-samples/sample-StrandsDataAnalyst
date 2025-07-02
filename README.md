@@ -1,7 +1,7 @@
 # Strands Data Analyst
-This data analyst agent has the capability to introspect the schema of the SQL database under context, and to answer user queries based on the database content: writing SQL queries, processing the data with pandas, and generating visualizations with Matplotlib.
+Data Analyst Agent, based on the Strands SDK, with the capability to introspect the schema of the SQL database under context, and to answer user queries based on the database content: writing SQL queries, processing the data with pandas, and generating visualizations with Matplotlib.
 
-The agent is also capable to pro-actively propose data analysis questions to explore the autonomously the data.
+The agent is also capable to pro-actively propose data analysis questions to autonomously explore the data.
 
 Finally, the agent is capable of summarizing the current data analysis session into a business report, that can be exported to a PDF.
 
