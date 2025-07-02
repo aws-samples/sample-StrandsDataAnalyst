@@ -1,0 +1,10 @@
+# Cache
+*.pyc
+
+# Data
+*.zip
+*.db
+web_app/static/
+data/visEval_dataset/
+data/cache/
+data/visEval_tests.jsonl

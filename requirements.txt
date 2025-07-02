@@ -1,0 +1,29 @@
+# Agent
+boto3
+strands
+jinja2
+json_repair
+print_color
+
+# Data Analytics
+sqlite3
+numpy
+pandas
+matplotlib
+
+# Eval
+tqdm
+jsonlines
+langchain
+langchain_aws
+joblib
+joblib_progress
+cairosvg
+attrs
+
+# Web App
+streamlit
+
+# Markdown to PDF
+markdown
+xhtml2pdf
