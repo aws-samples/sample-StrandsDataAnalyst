@@ -2,6 +2,7 @@ import json
 
 import boto3
 from json_repair import repair_json
+from jinja2 import Template
 
 from strands import Agent
 from strands.models import BedrockModel
@@ -12,15 +13,17 @@ from strands_data_analyst.db_schema import format_db_schema
 from strands_data_analyst.databases import SQLiteDB
 from strands_data_analyst.callback_handler import MessageCallbackHandler
 from strands_data_analyst.python_environment import PythonInterpreter
-from strands_data_analyst.templates import populate_template
 
 
 LLM_HAIKU = "us.anthropic.claude-3-5-haiku-20241022-v1:0"
 LLM_SONNET = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
 
+
 class DataAnalystAgent:
-    DATA_ANALYSIS_PROMPT = """
-<CONTEXT>
+    SYSTEM_PROMPT=Template("""
+You are an expert Data Analyst who can solve any data analysis task coding in Python.
+You can use the `python_repl` tool to execute the Python code.
+{% if db_schema %}
 Data analysis requests (queries, visualizations, etc) from the user are referencing a {{db_type}} database.
 To open a connection to the database use the following code:
 ```python
@@ -70,9 +73,9 @@ visualization_caption = "caption about the visualization to be generated"
 ```
 It is important that you use the variable names `visualization` for the figure and `visualization_caption` for the caption to allow later access to them.
 Do not invoke `data_frame.plot`, only the `visualization` `matplotlib.figure.Figure` will be visible to the user.
-</CONTEXT>"""
+{% endif %}""")
 
-    DATA_REPORT_PROMPT="""
+    DATA_REPORT_PROMPT=Template("""
 You are running a data analysis session with the user, and you need to summarize all the information and insights into the following MarkDown document:
 <DOCUMENT>
 {{document}}
@@ -87,13 +90,10 @@ Try to find common threads between the sections, and provide a business narrativ
 Feel free to change the document title, add new sections/findings, and update general sections like an "Executive Summary", "Conclusion", etc...
 
 You should return to the user only the final Markdown document text, without any additional comment, and without any markup.
-"""
+""")
 
-    DATA_EXPLORATION = """
-You are a highly skilled data analyst who is given a DB with the following schema:
-{{db_schema}}
-
-You should come up with three insightful analysis goals about the data.
+    DATA_EXPLORATION=Template("""
+You should suggest three insightful data analysis goals for the given database schema.
 
 You should return a single JSON data-structure with a list of dictionaries containing the following fields:
 - `goal_rationale`: a rationale of why this is an interesting analysis goal, describing what new insights we will gain.
@@ -114,12 +114,12 @@ Output only JSON data, without adding any other comment:
     "goal_question": ""
   }
 ]
-""" 
+""")
     def __init__(self,
                  verbose=True,
                  always_reset=False,
                  img_handler=None,
-                 conversation_window=8):
+                 conversation_window=40):
         self.python_interpreter = PythonInterpreter()
         self.agent = Agent(
             model=BedrockModel(
@@ -128,10 +128,7 @@ Output only JSON data, without adding any other comment:
             tools=[self.python_interpreter.get_tool()],
             callback_handler=MessageCallbackHandler() if verbose else null_callback_handler,
             conversation_manager=SlidingWindowConversationManager(window_size=conversation_window),
-            system_prompt="""
-You are an expert Data Analyst who can solve any task using code blobs. You will be given a data analysis task to solve as best you can.
-To do so, you have been given access to a tool to execute python code: `python_repl`
-""")
+            system_prompt=DataAnalystAgent.SYSTEM_PROMPT.render())
         self.always_reset = always_reset
         self.db_id = None
         self.db_schema = None
@@ -157,19 +154,16 @@ To do so, you have been given access to a tool to execute python code: `python_r
         self.db_schema = format_db_schema(db.get_schema())
         db_conn_open, db_conn_close = db.get_connection_code()
         
-        self.dataset_context = populate_template(
-            DataAnalystAgent.DATA_ANALYSIS_PROMPT,
-            variables={
-                'db_type': db.DB_TYPE,
-                'db_schema': self.db_schema,
-                'db_conn_open': db_conn_open,
-                'db_conn_close': db_conn_close
-            })
+        self.agent.system_prompt = DataAnalystAgent.SYSTEM_PROMPT.render({
+            'db_type': db.DB_TYPE,
+            'db_schema': self.db_schema,
+            'db_conn_open': db_conn_open,
+            'db_conn_close': db_conn_close
+        })
 
     def generate_report(self):
-        response = self.agent(populate_template(
-            DataAnalystAgent.DATA_REPORT_PROMPT,
-            variables={
+        response = self.agent(
+            DataAnalystAgent.DATA_REPORT_PROMPT.render({
                 'document': self.document,
                 'images': self.img_handler.images if self.img_handler is not None else []
             }))
@@ -179,10 +173,7 @@ To do so, you have been given access to a tool to execute python code: `python_r
     def query(self, query):
         if self.always_reset:
             self.reset()
-
-        if self.dataset_context:
-            query = f"{query}\n{self.dataset_context}"
-
+        
         self.python_interpreter.clear_state()
         output = self.agent(query)
         
@@ -201,9 +192,8 @@ To do so, you have been given access to a tool to execute python code: `python_r
         return response
 
     def automated_data_exploration(self):
-        response = self.agent(populate_template(
-            DataAnalystAgent.DATA_EXPLORATION,
-            variables={
+        response = self.agent(
+            DataAnalystAgent.DATA_EXPLORATION.render({
                 'db_schema': self.db_schema,
             }))
         goals = json.loads(repair_json(response.message['content'][0]['text']))
