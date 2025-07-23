@@ -36,6 +36,8 @@ unzip ./data/databases/chinhook_sqlite/chinook.zip -d data/databases/chinhook_sq
 Launch the Streamlit web-app:
 ```
 cd web_app
+export PYTHONPATH=$PYTHONPATH:..
+
 streamlit run data_analyst.py
 ```
 
