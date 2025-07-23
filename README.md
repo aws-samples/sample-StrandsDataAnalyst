@@ -11,6 +11,10 @@ To benchmark the agent also on the "Natural Language to SQL" task (NL2SQL), we p
 
 ![data-analyst-demo](https://github.com/user-attachments/assets/302e7d71-579e-402b-a9ed-075dee2b9417)
 
+## Installation
+```
+pip install -r requirements.txt
+```
 
 ## Configuring the LLM Credentials
 [Strands](https://strandsagents.com/latest/) supports many different model providers. By default, the Data Analyst agent uses the Amazon Bedrock model provider with the Claude 3.5 Haiku model.

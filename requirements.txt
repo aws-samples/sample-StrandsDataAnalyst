@@ -1,12 +1,11 @@
 # Agent
 boto3
-strands
+strands-agents
 jinja2
 json_repair
 print_color
 
 # Data Analytics
-sqlite3
 numpy
 pandas
 matplotlib
